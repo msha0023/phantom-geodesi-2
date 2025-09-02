@@ -112,7 +112,7 @@ subroutine read_phantom_ascii_dump(iunit,xall,vall,np,mall)
  integer, intent(out) :: np
  character(len=1) :: hash
  integer :: i
- real :: x(3),pmass,hsmooth,dens,v(3),m
+ real :: x(3),pmass,hsmooth,dens,v(3)
 
  np = -1
 

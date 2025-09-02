@@ -9,10 +9,6 @@ subroutine get_forcegr(x,v,dens,u,p,fterm)
  real,    intent(out) :: fterm(3)
  real :: r,r2
 
- if (mass1 == 0.) then
-   STOP 'Mass of BH is zero. Change it for this calculation'
- endif
- 
  r2 = dot_product(x,x)
  r  = sqrt(r2)
  fterm = -mass1*x/(r2*r)

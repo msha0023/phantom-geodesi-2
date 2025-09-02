@@ -25,7 +25,7 @@ module infile_utils
 ! generic interface write_inopt to write an input option of any type
 !
  interface write_inopt
-  module procedure write_inopt_int,write_inopt_real4,write_inopt_real8,write_inopt_string,write_inopt_logical
+  module procedure write_inopt_int,write_inopt_real4,write_inopt_real8,write_inopt_real16,write_inopt_string,write_inopt_logical
  end interface write_inopt
 !
 ! generic interface read_inopt to read an input option of any type
@@ -225,6 +225,69 @@ subroutine write_inopt_real8(rval,name,descript,iunit,ierr,exp,time)
  if (present(ierr)) ierr = ierror
 
 end subroutine write_inopt_real8
+
+!-----------------------------------------------------------------
+!+
+!  write real variable to input file
+!+
+!-----------------------------------------------------------------
+subroutine write_inopt_real16(rval,name,descript,iunit,ierr,exp,time)
+ real(kind=16),     intent(in)  :: rval
+ character(len=*), intent(in)  :: name,descript
+ integer,          intent(in)  :: iunit
+ logical,          intent(in),  optional :: exp,time
+ integer,          intent(out), optional :: ierr
+ logical :: doexp,dotime
+ integer :: nhr,nmin !,nsec
+ character(len=32) :: tmpstring
+ real(kind=16) :: trem
+ integer :: ierror
+
+ doexp = .false.
+ if (present(exp)) then
+    if (exp) doexp = .true.
+ endif
+ dotime = .false.
+ if (present(time)) then
+    if (time) dotime = .true.
+ endif
+
+ if (dotime) then
+    trem = rval
+    nhr = int(trem/3600.)
+    if (nhr > 0) trem = trem - nhr*3600.
+    nmin = int(trem/60.)
+    if (nmin > 0) trem = trem - nmin*60.
+    !nsec = int(trem)
+
+    write(iunit,"(a20,' = ',5x,i3.3,':',i2.2,4x,'! ',a)",iostat=ierror) &
+         name,nhr,nmin,descript
+ else
+    if (doexp .or. (abs(rval) < 1.e-3 .and. abs(rval) > tiny(rval)) &
+              .or. (abs(rval) >= 1.e4)) then
+       write(iunit,"(a20,' = ',1x,es10.3,4x,'! ',a)",iostat=ierror) &
+         name,rval,descript
+    else
+       if (abs(rval) <= 1.e-1) then
+          write(tmpstring,"(f16.13)",iostat=ierror) rval
+          tmpstring = adjustl(strip_zeros(tmpstring,3))
+       elseif (abs(rval) >= 1.e1) then
+          write(tmpstring,"(g16.9)",iostat=ierror) rval
+          tmpstring = adjustl(strip_zeros(tmpstring,0))
+       else
+          write(tmpstring,"(g16.9)",iostat=ierror) rval
+          tmpstring = adjustl(strip_zeros(tmpstring,3))
+       endif
+       if (len_trim(tmpstring) > 10) then
+          write(iunit,"(a20,' = ',1x,a,2x,'! ',a)",iostat=ierror) name,adjustr(trim(tmpstring)),descript
+       else
+          write(iunit,"(a20,' = ',1x,a10,4x,'! ',a)",iostat=ierror) name,adjustr(trim(tmpstring)),descript
+       endif
+    endif
+ endif
+ if (present(ierr)) ierr = ierror
+
+end subroutine write_inopt_real16
 
 !-----------------------------------------------------------------
 !+

@@ -13,6 +13,7 @@ subroutine get_forcegr(x,v,dens,u,p,fterm)
  use metric_tools, only: get_metric, get_metric_derivs
  use utils_gr, only: get_u0
  use eos, only: get_enthalpy
+ use metric, only: mass1
  real,    intent(in)  :: x(3),v(3),dens,u,p
  real,    intent(out) :: fterm(3)
  real    :: gcov(0:3,0:3), gcon(0:3,0:3)
@@ -26,7 +27,6 @@ subroutine get_forcegr(x,v,dens,u,p,fterm)
  ! Note to self: try with potential from Tejeda, Rosswog  2013
  call get_metric(x,gcov,gcon,sqrtg)
  call get_metric_derivs(x,dgcovdx1, dgcovdx2, dgcovdx3)
-
  call get_enthalpy(enth,dens,p)
 
  ! lower-case 4-velocity
@@ -54,6 +54,8 @@ subroutine get_forcegr(x,v,dens,u,p,fterm)
        fterm(3) = fterm(3) + term(i,j)*dgcovdx3(i,j)
     enddo
  enddo
+
+ if (mass1 == 0.) fterm(:) = 0.
 
 end subroutine get_forcegr
 

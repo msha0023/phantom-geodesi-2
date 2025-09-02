@@ -2,7 +2,7 @@ module set_geodesic
  implicit none
 
  real, parameter    :: pi = acos(-1.)
- integer, parameter :: ngtypes = 11
+ integer, parameter :: ngtypes = 13
  character(len=*), parameter  :: &
   gtypelist(ngtypes) = (/&
                        'circular             ',&
@@ -15,7 +15,9 @@ module set_geodesic
                        'custom               ',&
                        'ellipse              ',&
                        'parabola             ',&
-                       'binary               '&
+                       'binary               ',&
+                       'single               ',&
+                       'emilio               '&
                        /)
 
  integer, parameter :: &
@@ -29,9 +31,14 @@ module set_geodesic
                        icustom  = 8,       &
                        iellipse = 9,       &
                        iparabola = 10,     &
-                       ibinary  = 11
+                       ibinary  = 11,      &
+                       isingle  = 12,      &
+                       iemilio  = 13
+
  real :: rp_newton, &
-         inc_parabola
+         inc_parabola, &
+         beta, &
+         phi
  integer :: gtype
 contains
 
@@ -57,13 +64,13 @@ subroutine setgeodesic(x,v,mall,np,type,r0)
  integer, intent(in) :: type,np
  real, intent(in)    :: mall(np)
  real, intent(inout) :: x(3,np), v(3,np)
- real :: r, vy, x1
+ real :: r, vy, x1, x_shift(3), v_shift(3)
  real :: ra,va,omega,fac
  real :: rotate_y(3,3), inclination
- real :: theta,phi,m,q,rho2,y1,z1,vx,vz,rdot,thetadot
- real :: ecc,semia,rp,beta,rt
+ real :: theta,m,q,rho2,y1,z1,vx,vz,rdot,thetadot
+ real :: ecc,semia,rp,rt
  real :: vhat(3),vmag,dx(3),dv(3),mtot
- real :: pos_mag,vel_mag,eng,semi_major,vel_orbit
+ real :: xcm(3),vcm(3),phidot,angmom,mb,ro
  character(len=120)      :: filename
  integer                 :: ierr
  logical                 :: iexist
@@ -306,7 +313,7 @@ subroutine setgeodesic(x,v,mall,np,type,r0)
     !default values
     rp_newton  = 47.131
     inc_parabola = 45.
-    r = 500
+
     filename = 'orbit'//'.params'
     inquire(file=filename,exist=iexist)
     if (iexist) call read_setupfile(filename,ierr)
@@ -315,12 +322,14 @@ subroutine setgeodesic(x,v,mall,np,type,r0)
        print*,' Edit '//trim(filename)//' and rerun'
        stop
     endif
-
+    r = 50000000.
+    rp_newton = 80406.6866002857
+    inc_parabola = 0.
     print*,rp_newton,"rp newton"
     y1 = -2.*rp_newton + r
     x1 = sqrt(r**2 - y1**2)
     x(1:3,np)  = (/x1,y1,0./)
-    vmag = sqrt(2.*1./r)
+    vmag = sqrt(2.*1000./r)
     vhat = (/-2.*rp_newton,-x1,0./)/sqrt(4.*rp_newton**2 + x1**2)
     v(1:3,np)    = vmag*vhat
     inc_parabola = inc_parabola/180. * pi
@@ -328,24 +337,67 @@ subroutine setgeodesic(x,v,mall,np,type,r0)
     x(1:3,np) = matmul(rotate_y,x(1:3,np))
     v(1:3,np) = matmul(rotate_y,v(1:3,np))
 
+    print*, x(1:3,np), "x(1:3,np)", v(1:3,np), "v(1:3,np)"
+
    print*,'Suggested dt: ',(2.*pi*sqrt(rp_newton**3))/100.
 
  case(ibinary)
     mtot = sum(mall)
-    call prompt('eccentricity',ecc)
-    call prompt('semi-major',semia)
+   !  call prompt('eccentricity',ecc)
+   !  call prompt('semi-major',semia)
+
+    semia = 4.71307
+    ecc = 0.01
+   ! ecc = 0.5
+
+    beta = 1.0
+
+    rt = semia * (mass1 / mtot)**(1./3.)
+    rp = rt / beta
+    r = 1000000.
+
+    y1 = -2.*rp + r
+    x1 = sqrt(r**2 - y1**2)
+
+    x_shift(1:3)  = (/x1,y1,0./)
+    vmag = sqrt(2.*1./r)
+
+    vhat = (/-2.*rp,-x1,0./)/sqrt(4.*rp**2 + x1**2)
+    v_shift(1:3)  = vmag*vhat
 
     ! set binary at apastron
-    dx = (/semia*(1. + ecc),0.,0./)
-    dv = (/0.,sqrt(semia*(1.-ecc**2)*mtot)/dx(1),0./)
+    dx = (/0.,semia*(1. + ecc),0./)
+    dv = (/sqrt(semia*(1.-ecc**2)*mtot)/dx(2),0.,0./)
 
-    x(1:3,1) = -dx*mall(2)/mtot + (/10000000.,0.,0./)
-    x(1:3,2) =  dx*mall(1)/mtot + (/10000000.,0.,0./)
+   !  x(1:3,1) = -dx*mall(2)/mtot + x_shift
+   !  x(1:3,2) =  dx*mall(1)/mtot + x_shift
+    
+   !  ! velocities
+   !  v(1:3,1) = -dv*mall(2)/mtot + v_shift
+   !  v(1:3,2) =  dv*mall(1)/mtot + v_shift
+
+    x(1:3,1) = -dx*mall(2)/mtot
+    x(1:3,2) =  dx*mall(1)/mtot
 
     ! velocities
-    v(1:3,1) = -dv*mall(2)/mtot
-    v(1:3,2) =  dv*mall(1)/mtot
+   !  v(1:3,1) =  dv*mall(2)/mtot + (/0.1,0.,0./)
+   !  v(1:3,2) = -dv*mall(1)/mtot+ (/0.1,0.,0./)
 
+   !  print*, x(1:3,1), "x(1:3,1)", x(1:3,2), "x(1:3,2)"
+   !  print*, v(1:3,1), "v(1:3,1)", v(1:3,2), "v(1:3,2)"
+
+   !  print*, ecc, 'eccentricity at the start'
+   !  dx = x(1:3,2) - x(1:3,1)
+   !  dv = v(1:3,2) - v(1:3,1)
+
+   !  rdotv = dot_product(dx(1:3),dv(1:3))
+   !  mu = mtot
+   !  v2 = dot_product(dv(1:3),dv(1:3))
+   !  rmag = sqrt(dot_product(dx(1:3),dx(1:3)))
+
+   !  ecc_vec = (v2 / mu - 1 / rmag)* dx(1:3) - (rdotv / mu)*dv(1:3)
+   !  print*,  ecc_vec, 'eccentricity vector at the start'
+   !  print*, sqrt(dot_product(ecc_vec,ecc_vec)), 'eccentricity at the start'
     ! The following parameters are a test collision case from Monte Carlo code of Alexander Heger
     ! x(1:3,1) = (/22170.50316413,  6506.44584756,    -0./)
     ! x(1:3,2) = (/22163.56404343,  6494.1490515 ,     0./)
@@ -364,16 +416,113 @@ subroutine setgeodesic(x,v,mall,np,type,r0)
     ! v(1:3,1) = (/ -0.0018125042852483984, 0.00017179484524338824,0./)
     ! v(1:3,2) = (/ -0.002577916936322562, -0.0002517095306686536,0./)
 
-    ! x(1:3,1) = (/  6480927.435113909, 529582.2122989591,0./)
-    ! x(1:3,2) = (/ 6480925.871844204, 529583.4294852862, 0./)
-    ! v(1:3,1) = (/  -0.017214870274126038, -0.000318381598394309,0./)
-    ! v(1:3,2) = (/ -0.017832134174461018, -0.0011111525441099524,0./)
 
-    ! this one is inclined orbit.
-    x(1:3,1) = (/4205171.490408985, 407876.40192287887, -0.9176798294906736/)
-    v(1:3,1) = (/  -0.02188157081647087, -0.0007900244838645161, 0.0003095389204715863/)
-    x(1:3,2) = (/ 4205172.678026321, 407874.8660700624, 0.9176798294906736/)
-    v(1:3,2) = (/ -0.021583130982107807, -0.0013129443865982967, -0.0003095389204715863/)
+    ! x(1:3,1) = (/182126.6666551551607, 116897.5526729668345, -0.0000000000000/)
+    ! x(1:3,2) = (/182125.4840725345712, 116898.9204948952101, 0.0000000000000/)
+    ! v(1:3,1) = (/-0.0907537884349, -0.0265191266771, -0.0000000000000/)
+    ! v(1:3,2) = (/-0.0915493579137, -0.0272069968298, 0.0000000000000/)
+
+   !  x(1:3,1) = (/6163760.3942570993677, 652285.4969001520658, 0.0000000000000/)
+   !  x(1:3,2) = (/6163759.5778802530840, 652287.2021698787576, 0.0000000000000/)
+   !  v(1:3,1) = (/-0.0174743682774, -0.0007244617089, -0.0000000000000/)
+   !  v(1:3,2) = (/-0.0184020612329, -0.0011685832680, 0.0000000000000/)
+
+x(1:3,1) = (/6164039.4095, 652315.0473500001, 0.0/)
+x(1:3,2) = (/6164038.5905, 652316.75265, 0.0/)
+v(1:3,1) = (/-0.0174743635, -0.0007244617, 0.0/)
+v(1:3,2) = (/-0.0184020565, -0.0011685833, 0.0/)
+
+ case(isingle)
+
+   
+   ! x(1:3,1) = (/1466161.8667043117 ,  319547.11416651646,       0./)
+   ! v(1:3,1) = (/-0.0362978315338778, -0.0039096311721948,  0./)
+
+   x(1:3,1) = (/1466162.2748927348, 319546.2615316531, -0.0/)
+   v(1:3,1) = (/-0.035833985056138815, -0.0036875703926903193, -0.0/)
+
+
+ case(iemilio)
+   ! call prompt('beta',beta)
+   ! call prompt('phi',phi)
+   ! call prompt('a',a)
+
+   ! a = 0.1*101.30607675019033 ! 0.1 AU in code units
+   ! print*,a, 'a',mall,'mall',mass1,'mass1'
+   ! beta = 1.0
+   ! phi = 0.0
+
+
+    filename = 'sample'//'.params'
+    inquire(file=filename,exist=iexist)
+    if (iexist) call read_setupfile_sampling(filename,ierr)
+    if (.not. iexist .or. ierr /= 0) then
+       call write_setupfile_sampling(filename)
+       print*,' Edit '//trim(filename)//' and rerun'
+       stop
+    endif
+
+   a = 1.0130607675019032 ! 0.01 AU in code units
+   mb = mall(1) + mall(2)
+   rt = a*(mass1/mb)**(1./3.)
+   phidot = - sqrt(mb/a**3) ! considering retrograde orbit
+   rp = rt/beta
+   angmom = sqrt(2*mass1*rp**2 / (rp - 2*mass1))
+   ro = 50*rt
+
+   print*, beta, 'beta', rp, 'rp', rt, 'rt'
+
+   xcm = (/ro,0.,0./)
+   ! using the centre of mass velocity in Schwarzschild metric
+   vcm = (/-(1-(2*mass1/ro))*sqrt(2*mass1/ro - (angmom**2/ro**2)*(1-(2*mass1/ro))), (1-(2*mass1/ro))*angmom/ro, 0./)
+
+   x(1,1) = xcm(1) + mall(1)/mb * a * cos(phi)
+   x(2,1) = xcm(2) + mall(1)/mb * a * sin(phi)
+   x(3,1) = 0.
+   
+   x(1,2) = xcm(1) - mall(2)/mb * a * cos(phi)
+   x(2,2) = xcm(2) - mall(2)/mb * a * sin(phi)
+   x(3,2) = 0.
+   
+   v(1,1) = vcm(1) - mall(1)/mb * a * phidot * sin(phi)
+   v(2,1) = vcm(2) + mall(1)/mb * a * phidot * cos(phi)
+   v(3,1) = 0.
+   
+   v(1,2) = vcm(1) + mall(2)/mb * a * phidot * sin(phi)
+   v(2,2) = vcm(2) - mall(2)/mb * a * phidot * cos(phi)
+   v(3,2) = 0.
+
+   ! x(1:3,1) = (/5.06561168E+03,  5.01500474E-01, 0./)
+   ! x(1:3,2) = (/5.06546893E+03,  -5.01500474E-01, 0./)
+   ! v(1:3,1) = (/-2.03100412E-02, 1.39319918E-03, 0./)
+   ! v(1:3,2) = (/-1.93264431E-02, 1.25321244E-03, 0./)
+
+   ! x(1:3,1) = (/5.06553235E+03,  5.06491538E-01, 0./)
+   ! x(1:3,2) = (/5.06554826E+03, -5.06491538E-01, 0./)
+   ! v(1:3,1) = (/-1.93215486E-02, 1.33100850E-03, 0./)
+   ! v(1:3,2) = (/-2.03149357E-02, 1.31540312E-03, 0./)
+
+   ! x(1:3,1) = (/40863.139718948034, 62785.040303442765, -0.0/)
+   ! x(1:3,2) = (/40861.47520727811, 62784.974664595204, 0.0/)
+   ! v(1:3,1) = (/-0.13847582671224368, -0.07569230010834962, -0.0/)
+   ! v(1:3,2) = (/-0.13843222271479302, -0.07678714844456629, 0.0/)
+
+   ! x(1:3,1) = (/1466162.2748927348, 319546.2615316531, -0.0/) 
+   ! x(1:3,2) = (/1466161.4585158883, 319547.96680137987, 0.0/)
+   ! v(1:3,1) = (/-0.035833985056138815, -0.0036875703926903193, -0.0/) ! add a velocity and then plot in COM frame
+   ! v(1:3,2) = (/-0.03676167801161674, -0.004131691951699353, 0.0/) 
+   !  v(1:3,1) = (/0.000463846477739 ,  0.0002220607795045, -0./)  + (/0.,0.0,0.0/)
+   !  v(1:3,2) = (/-0.000463846477739 , -0.0002220607795045,  0./) + (/0.0,0.0,0.0/)
+
+   ! set the system without the frame vel
+   ! v(1:3,1) = (/0.000463846477739 ,  0.0002220607795045, -0./)
+   ! v(1:3,2) = (/-0.000463846477739 , -0.0002220607795045,  0./)
+
+   print*,x(1:3,1),'1st star'
+   print*,x(1:3,2),'2nd star'
+   print*,v(1:3,1),'1st vel'
+   print*,v(1:3,2),'2nd vel'
+
 
  end select
 
@@ -389,7 +538,6 @@ subroutine write_setupfile(filename)
  use infile_utils, only:write_inopt
  character(len=*), intent(in) :: filename
  integer, parameter :: iunit = 20
- integer :: i
 
  print "(a)",' writing setup options file '//trim(filename)
  open(unit=iunit,file=filename,status='replace',form='formatted')
@@ -400,6 +548,21 @@ subroutine write_setupfile(filename)
  close(iunit)
 
 end subroutine write_setupfile
+
+subroutine write_setupfile_sampling(filename)
+ use infile_utils, only:write_inopt
+ character(len=*), intent(in) :: filename
+ integer, parameter :: iunit = 20
+
+ print "(a)",' writing setup options file '//trim(filename)
+ open(unit=iunit,file=filename,status='replace',form='formatted')
+ write(iunit,"(a)") '# tde setup file'
+
+ call write_inopt(beta,'beta','beta',iunit)
+ call write_inopt(phi,'phi','phi',iunit)
+ close(iunit)
+
+end subroutine write_setupfile_sampling
 
 subroutine read_setupfile(filename,ierr)
  use infile_utils, only:open_db_from_file,inopts,read_inopt,close_db
@@ -421,7 +584,30 @@ subroutine read_setupfile(filename,ierr)
      print "(1x,i2,a)",nerr,' error(s) during read of setup file: re-writing...'
      ierr = nerr
  endif
-  print*,rp_newton,"rp_newton in readsetup"
+
 end subroutine read_setupfile
+
+subroutine read_setupfile_sampling(filename,ierr)
+ use infile_utils, only:open_db_from_file,inopts,read_inopt,close_db
+ character(len=*), intent(in)  :: filename
+ integer,          intent(out) :: ierr
+ integer, parameter :: iunit = 21
+ integer :: nerr
+ type(inopts), allocatable :: db(:)
+
+ print "(a)",'reading setup options from '//trim(filename)
+ nerr = 0
+ ierr = 0
+ call open_db_from_file(db,filename,iunit,ierr)
+
+ call read_inopt(beta,'beta',db,min=0.,errcount=nerr)
+ call read_inopt(phi,'phi',db,min=0.,errcount=nerr)
+ call close_db(db)
+ if (nerr > 0) then
+     print "(1x,i2,a)",nerr,' error(s) during read of setup file: re-writing...'
+     ierr = nerr
+ endif
+
+end subroutine read_setupfile_sampling
 
 end module set_geodesic

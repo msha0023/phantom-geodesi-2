@@ -13,6 +13,9 @@ FC=gfortran
 FFLAGS= -O3 -Wall -Wextra -Wno-compare-reals -Wno-unused-dummy-argument -frecord-marker=4 \
         -finline-functions-called-once -finline-limit=1500 -funroll-loops -ftree-vectorize \
         -std=f2008 -fall-intrinsics -fdefault-real-8 -fdefault-double-8
+# FFLAGS= -O3 -Wall -Wextra -Wno-compare-reals -Wno-unused-dummy-argument -frecord-marker=4 \
+#         -finline-functions-called-once -finline-limit=1500 -funroll-loops -ftree-vectorize \
+#         -std=f2008 -fall-intrinsics -fdefault-real-16
 DEBUGFLAG= -g -gdwarf-2 -fcheck=all -ffpe-trap=invalid,zero,overflow -finit-real=nan -finit-integer=nan -fbacktrace
 OMPFLAGS = -fopenmp
 OPENMP=no

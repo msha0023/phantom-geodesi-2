@@ -10,4 +10,8 @@ build/grtest
 *.png
 *pycache*
 grtest
-
+*.ev
+.DS_Store
+data_models.zip
+fort.8
+test_runs/ 

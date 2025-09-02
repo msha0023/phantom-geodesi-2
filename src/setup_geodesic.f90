@@ -27,7 +27,7 @@ subroutine setpart(xall,vall,np,mall)
     stop
  endif
 
- if (gtype == 11) then
+ if (gtype == 11 .or. gtype == 13) then
       call get_binary_mass(np, mall)
  endif
 
@@ -64,7 +64,7 @@ subroutine write_option(filename,np)
  use infile_utils, only:write_inopt
  character(len=*), intent(in) :: filename
  integer, parameter :: iunit = 20
- integer :: i,np
+ integer :: np
 
  print "(a)",' writing setup options file '//trim(filename)
  open(unit=iunit,file=filename,status='replace',form='formatted')

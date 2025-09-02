@@ -48,8 +48,18 @@ subroutine write_ev(time,energy,energy_init,angmom,angmom_init)
  real, intent(in) :: time,energy,energy_init,angmom,angmom_init
  integer, save :: i=0
  integer, parameter :: iu = 55
+ character(len=120)   :: ev_file
+ character(len=120)   :: file_input
  real :: diff_en, diff_angmom
  real :: d_en, d_ang
+ 
+ call  get_environment_variable("ev_file", file_input)
+ 
+ if (LEN_TRIM(file_input) > 0) then
+    ev_file=trim(file_input)
+ else
+    ev_file=trim('ev.dat')
+ endif
 
  diff_en = energy - energy_init
  diff_angmom = angmom - angmom_init
@@ -58,14 +68,14 @@ subroutine write_ev(time,energy,energy_init,angmom,angmom_init)
  d_ang = abs(diff_angmom) / angmom_init
 
  if (i==0) then
-    open(unit=iu, file='ev.dat',status='replace')
+    open(unit=iu, file=ev_file,status='replace')
     write(iu,*) '# Time, Energy, dE, Angular momentum, dL'
     i = i+1
  else
-    open(unit=iu, file='ev.dat',position='append')
+    open(unit=iu, file=ev_file,position='append')
  endif
 
- write(iu,*) time, diff_en, d_en, diff_angmom, d_ang
+ write(iu,*) time, energy, d_en,  angmom, d_ang
  close(iu)
 
 end subroutine write_ev
@@ -189,13 +199,13 @@ subroutine write_xyz(time,xall,np)
           !do i = 1,np
           call spherical2cartesian(xall(:,i),x(:,i))
           !enddo
-!       write(iu,*) time, x(1:3,:)
+!         write(iu,*) time, x(1:3,:)
           write(iu,*) x(1:3,i),time
        else
           STOP "Please pick a coordinate system that I can write to file in"
        endif
 
-       ! Write to positions.dat file in spherical
+    ! Write to positions.dat file in spherical
     else if (.not. write_cartesian) then
        if (coordinate_sys == 'Spherical') then
           write(iu,*) xall(1:3,i),time
@@ -219,15 +229,15 @@ end subroutine write_xyz
 !  Write one output file containing the time evolution of velocity for each particle in columns.
 !+
 !----------------------------------------------------------------
-subroutine write_vxyz(time,vall,np)
+subroutine write_vxyz(time,vall,np,force)
  use metric_tools, only: coordinate_sys
  use metric,       only: metric_type
  integer, intent(in) :: np
- real,    intent(in) :: time, vall(3,np)
+ real,    intent(in) :: time, vall(3,np), force(3,np)
  logical, save       :: first = .true.
  integer, parameter  :: iu = 70
  integer :: i,i1,i2
- character(len=11) :: ihead1,ihead2,ihead3,column_labels(np*3)
+ character(len=11) :: ihead1,ihead2,ihead3,ihead4,ihead5,ihead6,column_labels(np*3+3)
  character(len=30) :: fmt
  character(len=6)  :: nstring
  character(len=120)   :: velocities_file
@@ -255,6 +265,12 @@ subroutine write_vxyz(time,vall,np)
       i2 = i1 + 2
       column_labels(i1:i2) = [ihead1,ihead2,ihead3]
     enddo
+    
+    !-- Add additional labels for force components
+    write(ihead4,'("fx",i0)') 1
+    write(ihead5,'("fy",i0)') 1
+    write(ihead6,'("fz",i0)') 1
+    column_labels(np*3+1:) = [ihead4,ihead5,ihead6]
 
     !-- Create the format string for column labels
     write(nstring,'(i0)') np*3
@@ -269,7 +285,7 @@ subroutine write_vxyz(time,vall,np)
  else
     open(unit=iu, file=velocities_file,position='append')
  endif
- write(iu,*) time, vall(1:3,:)
+ write(iu,*) time, vall(1:3,:), force(1:3,1)
  close(iu)
 end subroutine write_vxyz
 end module

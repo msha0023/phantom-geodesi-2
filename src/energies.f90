@@ -26,14 +26,14 @@ subroutine get_ev(x,v,energy,angmom)
     if (coordinate_sys=='Cartesian') then
        r      = sqrt(dot_product(x,x))
        energy = (1. - rs/r)*U0
-       angmom = (x(1)*v(2)-x(2)*v(1))*U0
+       call get_p_from_v(pmom,v,x)
+       angmom = (x(1)*pmom(2)-x(2)*pmom(1)) 
     else if (coordinate_sys=='Spherical') then
        energy = (1. - rs/x(1))*U0
        angmom = x(1)**2*v(3)*U0
     endif
-  else if (metric_type == 'Minkowski' .and. force_type == 'Newtonian') then
-  !else if (metric_type == 'Minkowski') then
-    energy = 0.5*dot_product(v,v)
+ else if (metric_type == 'Minkowski' .or. force_type == 'Newtonian') then
+    energy = 0.5*dot_product(v,v) 
     angmom = x(1)*v(2)-x(2)*v(1)
  else if (metric_type == 'Kerr') then
     energy = -U0*v4(0)*dot_product(gcov(0,:),v4(:))

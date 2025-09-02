@@ -24,7 +24,7 @@ end function error_to_string
 !----------------------------------------------------------------
 !+
 !  Construct conserved variables from the primitive variables
-!  primitive variables are (v^i,d,u,P); v i
+!  primitive variables are (v^i,d,u,P), v i
 !  conserved variables are (rho,pmom_i,en)
 !+
 !----------------------------------------------------------------
@@ -48,6 +48,7 @@ subroutine primitive2conservative(x,v,dens,u,P,rho,pmom,en,en_type)
  call get_metric(x,gcov,gcon,sqrtg)
  call get_u0(x,v,U0)
  rho = sqrtg*dens*U0
+
  do i=1,3
     pmom(i) = U0*enth*dot_product(gcov(i,:),v4U(:))
  enddo

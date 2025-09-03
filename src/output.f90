@@ -91,12 +91,10 @@ subroutine write_xyz(time,xall,np)
  real,    intent(in) :: time
  integer, intent(in) :: np
  real, dimension(1:3,np), intent(in) :: xall
- real, dimension(1:3,np) :: x
  character(len=6) :: nstring
- integer, parameter :: iu = 66, iu2=33
- logical, save :: first = .true.,first2 = .true.
- integer :: i,i1,i2,i3,i4
- character(len=11) :: ihead1,ihead2,ihead3,column_labels(np*3)
+ integer, parameter :: iu2=33
+ logical, save :: first2 = .true.
+ integer :: i,i3,i4
  character(len=11) :: ihead12,ihead22,ihead32,column_labels2(np*3)
  character(len=30) :: fmt
  character(len=120)   :: positions_file,positions_all
@@ -113,7 +111,7 @@ subroutine write_xyz(time,xall,np)
  write(positions_all,"(a,i3.3,a)") 'positions.dat'
  ! write the file with all the data points.
  if (first2) then
-    open(unit=iu2, file=positions_all,status='replace')
+    open(unit=iu2, file=positions_file,status='replace')
     write(iu2,*) '# Number of particles'
     write(iu2,*) np
 
@@ -151,77 +149,6 @@ subroutine write_xyz(time,xall,np)
  write(iu2,*) xall(1:3,:),time
  close(iu2)
 
- do i=1,np
-    write(positions_file,"(a,i3.3,a)") 'positions-',i,'.dat'
-
-    if (first) then
-       open(unit=iu, file=positions_file,status='replace')
-       write(iu,*) '# Number of particles (n)'
-       write(iu,*) 1
-
-       !-- Create an array of strings for the column labels
-       !do i=1,np
-       select case(coordinate_sys)
-       case('Cartesian')
-          write(ihead1,'("x")') !i
-          write(ihead2,'("y")') !i
-          write(ihead3,'("z")') !i
-       case('Spherical')
-          write(ihead1,'("r")') !i
-          write(ihead2,'("theta")') !i
-          write(ihead3,'("phi")') !i
-       end select
-       i1 = 1 !  (i-1)*3+1
-       i2 = 3 ! i1 + 2
-       column_labels(i1:i2) = [ihead1,ihead2,ihead3]
-     !enddo
-
-      !-- Create the format string for column labels
-      write(nstring,'(i0)') 3
-      fmt = '("# ",'//trim(nstring)//'a30," Time")'
-
-      !-- Write column labels to the file
-      write(iu,fmt) column_labels(1:4)
-
-      !-- Write some other info to file
-      write(iu,*) '# Coordinate system: ',coordinate_sys,'. Metric: ',metric_type,'. Written to file in cartesian:',write_cartesian
-
-      first = .false.
-    else
-       open(unit=iu, file=positions_file,position='append')
-    endif
-
-    ! Write to positions.dat file in cartesian
-    if (write_cartesian) then
-       if (coordinate_sys == 'Cartesian') then
-          write(iu,*) xall(1:3,i),time
-       else if (coordinate_sys == 'Spherical') then
-          !do i = 1,np
-          call spherical2cartesian(xall(:,i),x(:,i))
-          !enddo
-!         write(iu,*) time, x(1:3,:)
-          write(iu,*) x(1:3,i),time
-       else
-          STOP "Please pick a coordinate system that I can write to file in"
-       endif
-
-    ! Write to positions.dat file in spherical
-    else if (.not. write_cartesian) then
-       if (coordinate_sys == 'Spherical') then
-          write(iu,*) xall(1:3,i),time
-       else if (coordinate_sys == 'Cartesian') then
-       !do i=1,np
-          call cartesian2spherical(xall(:,i),x(:,i))
-       !enddo
-          write(iu,*) x(1:3,i),time
-       endif
-    else
-       STOP "Please pick a coordinate system that I can write to file in"
-    endif
-
- enddo
- close(iu)
-
 end subroutine write_xyz
 
 !----------------------------------------------------------------
@@ -238,7 +165,6 @@ subroutine write_vxyz(time,vall,np,force)
  integer, parameter  :: iu = 70
  integer :: i,i1,i2
  character(len=11) :: ihead1,ihead2,ihead3,ihead4,ihead5,ihead6,column_labels(np*3+3)
- character(len=30) :: fmt
  character(len=6)  :: nstring
  character(len=120)   :: velocities_file
  CHARACTER(len=120)   :: file_input
@@ -274,10 +200,9 @@ subroutine write_vxyz(time,vall,np,force)
 
     !-- Create the format string for column labels
     write(nstring,'(i0)') np*3
-    fmt = '("# Time",'//trim(nstring)//'a30)'
-
-    !-- Write column labels to the file
-    write(iu,fmt) column_labels(:)
+    write(iu,'(A)', advance='no') '# Time'        ! no newline yet
+    write(iu,'(1X,'//trim(nstring)//'A30)') column_labels
+    write(iu,*)                                     
 
     !-- Write some other info to the file
     write(iu,*) '# Coordinate system: ',coordinate_sys,' Metric: ',metric_type
